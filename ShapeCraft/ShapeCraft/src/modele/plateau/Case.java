@@ -30,4 +30,7 @@ public class Case {
         plateau = _plateau;
     }
 
+    public void supprimerMachine() {
+        machine = null;
+    }
 }

@@ -49,11 +49,14 @@ public class Plateau extends Observable implements Runnable {
     }
 
     public void setMachine(int x, int y, Machine m) {
-        grilleCases[x][y].setMachine(m);
+        if (m != null) {
+            grilleCases[x][y].setMachine(m);
+        } else {
+            grilleCases[x][y].supprimerMachine(); // à ajouter dans Case.java
+        }
         setChanged();
         notifyObservers();
     }
-
 
     /**
      * Indique si p est contenu dans la grille

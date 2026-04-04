@@ -75,13 +75,46 @@ public class ImagePanel extends JPanel {
                             case modele.item.Color.White:
                                 g.setColor(Color.WHITE);
                                 break;
+                            case modele.item.Color.Green:
+                                g.setColor(Color.GREEN);
+                                break;
+                            case modele.item.Color.Blue:
+                                g.setColor(Color.BLUE);
+                                break;
+                            case modele.item.Color.Yellow:
+                                g.setColor(Color.YELLOW);
+                                break;
+                            case modele.item.Color.Purple:
+                                g.setColor(new Color(128, 0, 128));
+                                break;
+                            case modele.item.Color.Cyan:
+                                g.setColor(Color.CYAN);
+                                break;
                             // TODO autres couleurs
                         }
+                        int xQ = xFront + (widthFront / 2) * ((i >> 1) ^ 1);
+                        int yQ = yFront + (heigthFront / 2) * ((i & 1) ^ ((i >> 1) & 1));
+                        int wQ = widthFront / 2;
+                        int hQ = heigthFront / 2;
 
                         switch (ss) {
                             case SubShape.Carre:
-                                g.fillRect(xFront + (widthFront / 2) * ((i >> 1) ^ 1), yFront + (heigthFront / 2) * ((i & 1) ^ ((i >> 1) & 1)), widthFront / 2, heigthFront / 2);
+                                g.fillRect(xQ, yQ, wQ, hQ);
                                 break;
+                            case SubShape.Circle:
+                                g.fillOval(xQ, yQ, wQ, hQ);
+                                break;
+                            case SubShape.Fan: // triangle
+                                int[] xFan = {xQ, xQ + wQ, xQ};
+                                int[] yFan = {yQ, yQ + hQ, yQ + hQ};
+                                g.fillPolygon(xFan, yFan, 3);
+                                break;
+                            case SubShape.Star: // losange
+                                int[] xStar = {xQ + wQ/2, xQ + wQ, xQ + wQ/2, xQ};
+                                int[] yStar = {yQ, yQ + hQ/2, yQ + hQ, yQ + hQ/2};
+                                g.fillPolygon(xStar, yStar, 4);
+                                break;
+
                             // TODO autres formes
                         }
                     }

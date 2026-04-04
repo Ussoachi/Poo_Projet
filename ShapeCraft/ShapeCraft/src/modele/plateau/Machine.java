@@ -63,6 +63,8 @@ public abstract class Machine implements Runnable {
 
     }
 
-
+    public void setDirection(Direction _d) {
+        d = _d;
+    }
 
 }
