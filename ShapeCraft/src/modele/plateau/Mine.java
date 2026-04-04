@@ -8,9 +8,9 @@ public class Mine extends Machine {
 
 
     @Override
-    public void work() { // TODO : modifier, suivant le gisement
-        if (new Random().nextInt(4) == 0) {
-            current.add(new ItemShape("CrCb--Cb"));
+    public void work() {
+        if (current.isEmpty() &&new Random().nextInt(4) == 0) {
+            current.add(new ItemShape("CrCrCbCb"));
         }
 
     }

@@ -10,6 +10,7 @@ public class ImagePanel extends JPanel {
     private Image imgBackground;
     private Image imgFront;
     private ItemShape shape;
+    private String txt;
 
 
     public void setShape(ItemShape _shape) {
@@ -23,6 +24,11 @@ public class ImagePanel extends JPanel {
     public void setFront(Image _imgFront) {
         imgFront = _imgFront;
     }
+
+    public void setTxt(String _txt) {
+        txt = _txt;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -69,17 +75,17 @@ public class ImagePanel extends JPanel {
                     if (ss != SubShape.None) {
 
                         switch (tabC[i]) {
-                            case modele.item.Color.Red:
+                            case Red:
                                 g.setColor(Color.RED);
                                 break;
-                            case modele.item.Color.White:
+                            case White:
                                 g.setColor(Color.WHITE);
                                 break;
                             // TODO autres couleurs
                         }
 
                         switch (ss) {
-                            case SubShape.Carre:
+                            case Carre:
                                 g.fillRect(xFront + (widthFront / 2) * ((i >> 1) ^ 1), yFront + (heigthFront / 2) * ((i & 1) ^ ((i >> 1) & 1)), widthFront / 2, heigthFront / 2);
                                 break;
                             // TODO autres formes
@@ -87,6 +93,16 @@ public class ImagePanel extends JPanel {
                     }
                 }
             }
+            if (txt != null && !txt.isEmpty()) {
+    g.setColor(Color.WHITE);
+    g.setFont(new Font("Arial", Font.BOLD, 16));
+
+    FontMetrics fm = g.getFontMetrics();
+    int tx = (getWidth() - fm.stringWidth(txt)) / 2;
+    int ty = getHeight() - 10;
+
+    g.drawString(txt, tx, ty);
+}
 
         }
 

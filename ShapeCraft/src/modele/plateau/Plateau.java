@@ -73,16 +73,26 @@ public class Plateau extends Observable implements Runnable {
 
 
     @Override
-    public void run() {
-        for (int x = 0; x < SIZE_X; x++) {
-            for (int y = 0; y < SIZE_Y; y++) {
-                Case c = grilleCases[x][y];
-                if (c.getMachine() != null) {
-                    c.getMachine().run();
-                }
+public void run() {
+    for (int x = 0; x < SIZE_X; x++) {
+        for (int y = 0; y < SIZE_Y; y++) {
+            Case c = grilleCases[x][y];
+            if (c.getMachine() != null) {
+                c.getMachine().work();
             }
         }
-        setChanged();
-        notifyObservers();
     }
+
+    for (int x = 0; x < SIZE_X; x++) {
+        for (int y = 0; y < SIZE_Y; y++) {
+            Case c = grilleCases[x][y];
+            if (c.getMachine() != null) {
+                c.getMachine().send();
+            }
+        }
+    }
+
+    setChanged();
+    notifyObservers();
+}
 }
