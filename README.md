@@ -20,4 +20,4 @@
 
 ## ✍️ Auteur
 
-Projet réalisé par **DIOP MORY et HISSAM KEROUANI**
+Projet réalisé par **DIOP MORY et KEROUANI HISSAM**
