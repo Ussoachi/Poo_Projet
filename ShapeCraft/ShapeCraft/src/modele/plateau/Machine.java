@@ -26,6 +26,14 @@ public abstract class Machine implements Runnable {
         c= _c;
     }
 
+    public Direction getDirection() {
+        return d;
+    }
+
+    public void setDirection(Direction _d) {
+        d = _d;
+    }
+
     public Item getCurrent() {
         if (current.size() > 0) {
             return current.get(0);
@@ -34,13 +42,12 @@ public abstract class Machine implements Runnable {
         }
     }
 
-    public void send() // la machine dépose un item sur sa ou ses sorties
+    public void send() // la machine dépose un item sur sa sortie dans la direction d
     {
-        Case up = c.plateau.getCase(c, Direction.North);
-        if (up != null) {
-            Machine m = up.getMachine();
-            ;
-            if (m != null && !current.isEmpty()) {
+        Case voisine = c.plateau.getCase(c, d);
+        if (voisine != null) {
+            Machine m = voisine.getMachine();
+            if (m != null && !current.isEmpty() && m.current.isEmpty()) {
                 Item item = current.getFirst();
                 m.current.add(item);
                 current.remove(item);
@@ -49,22 +56,15 @@ public abstract class Machine implements Runnable {
     }
 
     public void work() {
-        if (current.size() > 0) {
-            ((ItemShape) current.get(0)).rotate();
-
-        }
-    }; // action de la machine, aucune par défaut
+        // aucune action par défaut
+    }
 
     @Override
     public void run() {
         work();
         send();
-
-
     }
 
-    public void setDirection(Direction _d) {
-        d = _d;
-    }
+
 
 }

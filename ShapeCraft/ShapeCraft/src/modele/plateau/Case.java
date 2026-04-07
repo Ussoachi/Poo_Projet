@@ -25,12 +25,21 @@ public class Case {
         return machine;
     }
 
+    public void removeMachine() {
+        machine = null;
+    }
+
+    public Item getGisement() {
+        return gisement;
+    }
+
+    public void setGisement(Item g) {
+        gisement = g;
+    }
+
     public Case(Plateau _plateau) {
 
         plateau = _plateau;
     }
 
-    public void supprimerMachine() {
-        machine = null;
-    }
 }

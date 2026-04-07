@@ -8,11 +8,17 @@ public class Mine extends Machine {
 
 
     @Override
-    public void work() { // TODO : modifier, suivant le gisement
-        if (new Random().nextInt(4) == 0) {
-            current.add(new ItemShape("CrCb--Cb"));
+    public void work() { // produit un item depuis le gisement de la case
+        if (current.isEmpty()) {
+            if (c != null && c.getGisement() instanceof ItemShape) {
+                current.add(new ItemShape((ItemShape) c.getGisement()));
+            } else {
+                // pas de gisement : production par défaut
+                if (new Random().nextInt(4) == 0) {
+                    current.add(new ItemShape("CrCb--Cb"));
+                }
+            }
         }
-
     }
 
     @Override
