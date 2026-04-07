@@ -1,133 +1,186 @@
 package modele.item;
 
-public class ItemShape extends Item {
-    private SubShape[] tabSubShapes;
-    private Color[] tabColors;
-    public enum Layer {one, two, three};
+import java.io.Serializable;
+
+public class ItemShape extends Item implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    public static final int NB_LAYERS = 3;
+    public static final int NB_QUADRANTS = 4;
+
+    private SubShape[][] layers;
+    private Color[][] colors;
+
+    private double progressInCell = 0.0;
+
+    public enum Layer { one, two, three }
+
+    public ItemShape(String str) {
+        layers = new SubShape[NB_LAYERS][NB_QUADRANTS];
+        colors = new Color[NB_LAYERS][NB_QUADRANTS];
+
+        initialiseraVide(layers, colors);
+
+        String[] layerStrings = str.split(":");
+        for (int i = 0; i < layerStrings.length && i < NB_LAYERS; i++) {
+            AnalyseLayer(layerStrings[i], i);
+        }
+    }
+
+    private ItemShape(SubShape[][] layers, Color[][] colors) {
+        this.layers = layers;
+        this.colors = colors;
+    }
+
+    private void initialiseraVide(SubShape[][] layers, Color[][] colors) {
+        for (int i = 0; i < NB_LAYERS; i++) {
+            for (int j = 0; j < NB_QUADRANTS; j++) {
+                layers[i][j] = SubShape.None;
+                colors[i][j] = null;
+            }
+        }
+    }
+
+    private void AnalyseLayer(String s, int layerIndex) {
+        for (int q = 0; q < NB_QUADRANTS && (q * 2 + 1) < s.length(); q++) {
+            layers[layerIndex][q] = AnalyseSubShape(s.charAt(q * 2));
+            colors[layerIndex][q] = AnalyseColor(s.charAt(q * 2 + 1));
+        }
+    }
+
+    private SubShape AnalyseSubShape(char c) {
+        switch (c) {
+            case 'C': return SubShape.Carre;
+            case 'O': return SubShape.Circle;
+            case 'F': return SubShape.Fan;
+            case 'S': return SubShape.Star;
+            case '-': return SubShape.None;
+            default: throw new IllegalArgumentException("Sous-forme inconnue : " + c);
+        }
+    }
+
+    private Color AnalyseColor(char c) {
+        switch (c) {
+            case 'r': return Color.Red;
+            case 'b': return Color.Blue;
+            case 'g': return Color.Green;
+            case 'w': return Color.White;
+            case 'c': return Color.Cyan;
+            case 'y': return Color.Yellow;
+            case 'p': return Color.Purple;
+            case '-': return null;
+            default: throw new IllegalArgumentException("Couleur inconnue : " + c);
+        }
+    }
+
+    private int layerIndex(Layer l) {
+        switch (l) {
+            case one: return 0;
+            case two: return 1;
+            case three: return 2;
+            default: throw new IllegalArgumentException("Layer inattendu : " + l);
+        }
+    }
 
     public SubShape[] getSubShapes(Layer l) {
-        switch(l) {
-            case one : return new SubShape[] {tabSubShapes[0], tabSubShapes[1], tabSubShapes[2], tabSubShapes[3]};
-
-            // TODO two & three
-            default:
-                throw new IllegalStateException("Unexpected value: " + l);
-        }
+        return layers[layerIndex(l)].clone();
     }
 
     public Color[] getColors(Layer l) {
-        switch(l) {
-            case one : return new Color[] {tabColors[0], tabColors[1], tabColors[2], tabColors[3]};
-            // TODO two & three
-            default:
-                throw new IllegalStateException("Unexpected value: " + l);
-        }
+        return colors[layerIndex(l)].clone();
     }
 
-    /**;
-     * Initialisation des formes par chaîne de caractères
-     * @param str : codage : (sous forme + couleur ) * (haut-droit, bas-droit, bas-gauche, haut-gauche) * 3 Layers
-     *            str.length multiple de 4
-     */
-    public ItemShape(String str) {
-
-        tabSubShapes = new SubShape[str.length()/2 ];
-        tabColors = new Color[str.length()/2];
-
-        for (int i = 0; i < 4; i++) { // fait uniquement pour la première couche
-            switch (str.charAt(i*2)) {
-                case 'C' : tabSubShapes[i] = SubShape.Carre;break;
-                case 'R' : tabSubShapes[i] = SubShape.Circle;break;
-                case 'F' : tabSubShapes[i] = SubShape.Fan;break;
-                case 'S' : tabSubShapes[i] = SubShape.Star;break;
-                case '-' : tabSubShapes[i] = SubShape.None;break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + str.charAt(i));
-            }
-
-            switch (str.charAt((i*2 + 1))) {
-                case 'r' : tabColors[i] = Color.Red; break;
-                case 'g' : tabColors[i] = Color.Green; break;
-                case 'b' : tabColors[i] = Color.Blue; break;
-                case 'y' : tabColors[i] = Color.Yellow; break;
-                case 'p' : tabColors[i] = Color.Purple; break;
-                case 'c' : tabColors[i] = Color.Cyan; break;
-                case 'w' : tabColors[i] = Color.White; break;
-                case '-' : tabColors[i] = null; break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + str.charAt((i + 1)*2));
-            }
-
-
-        }
-
-    }
-
-    // Constructeur par copie
-    public ItemShape(ItemShape source) {
-        tabSubShapes = new SubShape[4];
-        tabColors = new Color[4];
-        for (int i = 0; i < 4; i++) {
-            tabSubShapes[i] = source.tabSubShapes[i];
-            tabColors[i] = source.tabColors[i];
-        }
-    }
-
-    // TODO : écrire l'ensemble des fonctions de transformation souhaitées, définir les paramètres éventuels (sens, axe, etc.)
-    public void rotate() {
-
-        SubShape[] bufferSubShapes = new SubShape[4];
-        bufferSubShapes[0] = tabSubShapes[3];
-        bufferSubShapes [1] = tabSubShapes[0];
-        bufferSubShapes [2] = tabSubShapes[1];
-        bufferSubShapes [3] = tabSubShapes[2];
-
-        Color[] bufferColors = new Color[4];
-        bufferColors[0] = tabColors[3];
-        bufferColors [1] = tabColors[0];
-        bufferColors [2] = tabColors[1];
-        bufferColors [3] = tabColors[2];
-
-        tabSubShapes = bufferSubShapes;
-        tabColors = bufferColors;
-
-
-    }
-
-    public void stack(ItemShape ShapeSup) { // ShapeSup est empilé sur this
-        for (int i = 0; i < 4; i++) {
-            if (tabSubShapes[i] == SubShape.None && ShapeSup.tabSubShapes[i] != SubShape.None) {
-                tabSubShapes[i] = ShapeSup.tabSubShapes[i];
-                tabColors[i] = ShapeSup.tabColors[i];
+    public int getNbActiveLayers() {
+        int count = 0;
+        for (int i = 0; i < NB_LAYERS; i++) {
+            for (int j = 0; j < NB_QUADRANTS; j++) {
+                if (layers[i][j] != SubShape.None) {
+                    count++;
+                    break;
+                }
             }
         }
+        return count;
     }
 
-    public ItemShape Cut() { // this et l'objet retourné correspondent aux deux sorties
-        ItemShape partDroite = new ItemShape(this);
-        // partDroite garde quadrants 0 et 1, efface 2 et 3
-        partDroite.tabSubShapes[2] = SubShape.None; partDroite.tabColors[2] = null;
-        partDroite.tabSubShapes[3] = SubShape.None; partDroite.tabColors[3] = null;
-        // this garde quadrants 2 et 3, efface 0 et 1
-        tabSubShapes[0] = SubShape.None; tabColors[0] = null;
-        tabSubShapes[1] = SubShape.None; tabColors[1] = null;
-        return partDroite;
-    }
-
-    public void peindre(Color c) {
-        for (int i = 0; i < 4; i++) {
-            if (tabSubShapes[i] != SubShape.None) {
-                tabColors[i] = c;
+    private boolean layerestVide(int i) {
+        for (int j = 0; j < NB_QUADRANTS; j++) {
+            if (layers[i][j] != SubShape.None) {
+                return false;
             }
-        }
-    }
-
-    public boolean estEgal(ItemShape autre) {
-        for (int i = 0; i < 4; i++) {
-            if (tabSubShapes[i] != autre.tabSubShapes[i]) return false;
-            if (tabColors[i] != autre.tabColors[i]) return false;
         }
         return true;
     }
 
+    public void rotate() {
+        for (int i = 0; i < NB_LAYERS; i++) {
+            SubShape[] newShapes = new SubShape[NB_QUADRANTS];
+            Color[] newColors = new Color[NB_QUADRANTS];
+
+            newShapes[0] = layers[i][3];
+            newShapes[1] = layers[i][0];
+            newShapes[2] = layers[i][1];
+            newShapes[3] = layers[i][2];
+
+            newColors[0] = colors[i][3];
+            newColors[1] = colors[i][0];
+            newColors[2] = colors[i][1];
+            newColors[3] = colors[i][2];
+
+            layers[i] = newShapes;
+            colors[i] = newColors;
+        }
+    }
+
+    public void stack(ItemShape ShapeSup) {
+        int nbthis = getNbActiveLayers();
+        int nbSup = ShapeSup.getNbActiveLayers();
+
+        for (int i = 0; i < nbSup; i++) {
+            int dest = nbthis + i;
+            if (dest >= NB_LAYERS) {
+                break;
+            }
+            layers[dest] = ShapeSup.layers[i].clone();
+            colors[dest] = ShapeSup.colors[i].clone();
+        }
+    }
+
+    public ItemShape Cut() {
+        SubShape[][] autreL = new SubShape[NB_LAYERS][NB_QUADRANTS];
+        Color[][] autreC = new Color[NB_LAYERS][NB_QUADRANTS];
+
+        initialiseraVide(autreL, autreC);
+
+        for (int i = 0; i < NB_LAYERS; i++) {
+            for (int j = 0; j < NB_QUADRANTS; j++) {
+                if (j == 0 || j == 3) {
+                    autreL[i][j] = layers[i][j];
+                    autreC[i][j] = colors[i][j];
+                    layers[i][j] = SubShape.None;
+                    colors[i][j] = null;
+                }
+            }
+        }
+
+        return new ItemShape(autreL, autreC);
+    }
+
+    public void Color(Color c) {
+        for (int i = 0; i < NB_LAYERS; i++) {
+            for (int j = 0; j < NB_QUADRANTS; j++) {
+                if (layers[i][j] != SubShape.None) {
+                    colors[i][j] = c;
+                }
+            }
+        }
+    }
+
+    public double getProgressInCell() {
+        return progressInCell;
+    }
+
+    public void setProgressInCell(double p) {
+        this.progressInCell = Math.min(1.0, Math.max(0.0, p));
+    }
 }

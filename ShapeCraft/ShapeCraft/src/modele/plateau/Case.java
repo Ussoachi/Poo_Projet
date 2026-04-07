@@ -1,24 +1,30 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package modele.plateau;
 
+import modele.item.Color;
 import modele.item.Item;
-import modele.item.ItemShape;
+import modele.item.SubShape;
 
-public class Case {
+import java.io.Serializable;
 
+public class Case implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     protected Plateau plateau;
     protected Machine machine;
-    protected Item gisement; // certaines cases sont des gisements, pour placer des mines
+    protected Item gisement;
 
+    private Color couleurGisement = null;
+    private SubShape formeGisement = null;
+
+    public Case(Plateau plateau) {
+        this.plateau = plateau;
+    }
 
     public void setMachine(Machine m) {
         machine = m;
-        m.setCase(this);
+        if (m != null) {
+            m.setCase(this);
+        }
     }
 
     public Machine getMachine() {
@@ -26,20 +32,34 @@ public class Case {
     }
 
     public void removeMachine() {
-        machine = null;
+        this.machine = null;
     }
 
     public Item getGisement() {
         return gisement;
     }
 
-    public void setGisement(Item g) {
-        gisement = g;
+    public void setGisement(Item gisement) {
+        this.gisement = gisement;
     }
 
-    public Case(Plateau _plateau) {
-
-        plateau = _plateau;
+    public Color getCouleurGisement() {
+        return couleurGisement;
     }
 
+    public void setCouleurGisement(Color couleurGisement) {
+        this.couleurGisement = couleurGisement;
+    }
+
+    public SubShape getFormeGisement() {
+        return formeGisement;
+    }
+
+    public void setFormeGisement(SubShape formeGisement) {
+        this.formeGisement = formeGisement;
+    }
+
+    public boolean estGisement() {
+        return couleurGisement != null && formeGisement != null;
+    }
 }

@@ -1,396 +1,228 @@
 package vuecontroleur;
 
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Observable;
-import java.util.Observer;
-import javax.swing.*;
-
-
 import modele.item.Item;
-import modele.item.ItemColor;
 import modele.item.ItemShape;
 import modele.jeu.Jeu;
 import modele.plateau.*;
 
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.util.Observable;
+import java.util.Observer;
 
-/** Cette classe a deux fonctions :
- *  (1) Vue : proposer une représentation graphique de l'application (cases graphiques, etc.)
- *  (2) Controleur : écouter les évènements clavier et déclencher le traitement adapté sur le modèle
- *
- */
 public class VueControleur extends JFrame implements Observer {
-    private Plateau plateau; // référence sur une classe de modèle
-    private Jeu jeu;
-    private final int sizeX; // taille de la grille affichée
-    private final int sizeY;
-    private static final int pxCase = 60; // nombre de pixel par case
-    // icones affichées dans la grille
-    private Image icoRouge;
-    private Image icoTapisDroite;
-    private Image icoTapisGauche;
-    private Image icoTapisBas;
-    private Image icoPoubelle;
-    private Image icoMine;
-    private Image icoRotateur;
-    private Image icoDecoupeur;
-    private Image icoPeinture;
-    private Image icoEmpileur;
-    private Image icoLivraison;
 
-    private JComponent grilleIP;
-    private JPanel panneauOutils;
-    private JPanel panneauObjectifs;
-    private JLabel labelObjectif;
-    private JLabel labelProgression;
-    private ImagePanel panneauFormeObjectif;
-    private JButton btnPlayPause;
+    private final Plateau plateau;
+    private final Jeu     jeu;
+    private final int     sizeX;
+    private final int     sizeY;
+    private static final int PX_CASE = 82;
 
-    private boolean mousePressed = false; // permet de mémoriser l'état de la souris
+    private Image   icoZoneLivraison;
+    private Image   icoPoubelle;
+    private Image   icoMine;
+    private Image[] icoTapisForward = new Image[14];
+    private Image[] icoTapisDroite  = new Image[14];
+    private Image[] icoTapisGauche  = new Image[14];
 
-    private ImagePanel[][] tabIP; // cases graphiques
+    private final JComponent     grilleIP;
+    private final ImagePanel[][] tabIP;
+    private boolean sourisGauchePressed = false;
 
-    private JButton[] boutonsOutils;
-    private Jeu.Outil[] outilsBoutons;
-
+    // ------------------------------------------------------------------ init
 
     public VueControleur(Jeu _jeu) {
-        jeu = _jeu;
+        jeu     = _jeu;
         plateau = jeu.getPlateau();
-        sizeX = plateau.SIZE_X;
-        sizeY = plateau.SIZE_Y;
+        sizeX   = Plateau.SIZE_X;
+        sizeY   = Plateau.SIZE_Y;
 
         chargerLesIcones();
+
+        grilleIP = new JPanel(new GridLayout(sizeY, sizeX));
+        tabIP    = new ImagePanel[sizeX][sizeY];
         placerLesComposantsGraphiques();
 
         plateau.addObserver(this);
-
         mettreAJourAffichage();
-
     }
-
 
     private void chargerLesIcones() {
-
-        icoRouge       = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/colors/red.png").getImage();
-        icoTapisDroite = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/belt_top.png").getImage();
-        icoTapisGauche = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/belt_left.png").getImage();
-        icoTapisBas    = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/belt_right.png").getImage();
-        icoPoubelle    = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/trash.png").getImage();
-        icoMine        = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/miner.png").getImage();
-        icoRotateur    = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/rotater.png").getImage();
-        icoDecoupeur   = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/cutter.png").getImage();
-        icoPeinture    = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/painter.png").getImage();
-        icoEmpileur    = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/stacker.png").getImage();
-        icoLivraison   = new ImageIcon("./ShapeCraft/ShapeCraft/data/sprites/buildings/goal_acceptor.png").getImage();
-
+        icoZoneLivraison = charger("./data/sprites/buildings/hub.png");
+        icoPoubelle      = charger("./data/sprites/buildings/trash.png");
+        icoMine          = charger("./data/sprites/buildings/miner.png");
+        for (int i = 0; i < 14; i++) {
+            icoTapisForward[i] = charger("./data/sprites/belt/built/forward_" + i + ".png");
+            icoTapisDroite[i]  = charger("./data/sprites/belt/built/right_"   + i + ".png");
+            icoTapisGauche[i]  = charger("./data/sprites/belt/built/left_"    + i + ".png");
+        }
     }
 
-
+    private Image charger(String chemin) { return new ImageIcon(chemin).getImage(); }
 
     private void placerLesComposantsGraphiques() {
         setTitle("ShapeCraft");
-        setResizable(true);
+        setSize(sizeX * PX_CASE, sizeY * PX_CASE);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
-
-        // --- boîte à outils à gauche ---
-        panneauOutils = creerPanneauOutils();
-        add(panneauOutils, BorderLayout.WEST);
-
-        // --- grille au centre (exactement comme dans l'original) ---
-        grilleIP = new JPanel(new GridLayout(sizeY, sizeX));
-
-        tabIP = new ImagePanel[sizeX][sizeY];
+        setResizable(true);
 
         for (int y = 0; y < sizeY; y++) {
             for (int x = 0; x < sizeX; x++) {
-                ImagePanel iP = new ImagePanel();
+                ImagePanel ip = new ImagePanel();
+                tabIP[x][y] = ip;
+                final int fx = x, fy = y;
 
-                tabIP[x][y] = iP;
-
-                final int xx = x;
-                final int yy = y;
-                iP.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        mousePressed = false;
-                        jeu.press(xx, yy);
-                        System.out.println(xx + "-" + yy);
-                    }
-
-                    @Override
-                    public void mouseEntered(MouseEvent e) {
-                        if (mousePressed) {
-                            jeu.slide(xx, yy);
+                ip.addMouseListener(new MouseAdapter() {
+                    @Override public void mousePressed(MouseEvent e) {
+                        if (SwingUtilities.isLeftMouseButton(e)) {
+                            sourisGauchePressed = true;
+                            jeu.press(fx, fy);
+                        } else if (SwingUtilities.isRightMouseButton(e)) {
+                            jeu.supprimerMachine(fx, fy);
                         }
                     }
-
-                    @Override
-                    public void mousePressed(MouseEvent e) {
-                        mousePressed = true;
-                        jeu.press(xx, yy);
+                    @Override public void mouseReleased(MouseEvent e) {
+                        if (SwingUtilities.isLeftMouseButton(e)) sourisGauchePressed = false;
                     }
-
-                    @Override
-                    public void mouseReleased(MouseEvent e) {
-                        mousePressed = false;
-
+                    @Override public void mouseEntered(MouseEvent e) {
+                        if (sourisGauchePressed) jeu.slide(fx, fy);
                     }
                 });
 
-
-                grilleIP.add(iP);
+                grilleIP.add(ip);
             }
         }
-        add(grilleIP, BorderLayout.CENTER);
-
-        // --- panneau objectifs à droite ---
-        panneauObjectifs = creerPanneauObjectifs();
-        add(panneauObjectifs, BorderLayout.EAST);
-
-        setSize(sizeX * pxCase + 220, sizeY * pxCase + 30);
-        setLocationRelativeTo(null);
+        add(grilleIP);
     }
 
-    // --- Boîte à outils ---
-    private JPanel creerPanneauOutils() {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(new Color(40, 40, 45));
-        p.setPreferredSize(new Dimension(110, sizeY * pxCase));
+    // ------------------------------------------------------------------ affichage
 
-        JLabel titre = new JLabel("  Outils");
-        titre.setForeground(Color.WHITE);
-        titre.setFont(new Font("SansSerif", Font.BOLD, 12));
-        titre.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(titre);
-        p.add(Box.createVerticalStrut(4));
-
-        // Boutons Play/Pause et Reset
-        JPanel barreCtrl = new JPanel(new GridLayout(1, 2, 2, 0));
-        barreCtrl.setBackground(new Color(40, 40, 45));
-        barreCtrl.setMaximumSize(new Dimension(106, 26));
-
-        btnPlayPause = new JButton("Pause");
-        btnPlayPause.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        btnPlayPause.setBackground(new Color(60, 120, 60));
-        btnPlayPause.setForeground(Color.WHITE);
-        btnPlayPause.setFocusPainted(false);
-        btnPlayPause.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                jeu.togglePause();
-                if (jeu.isEnPause()) {
-                    btnPlayPause.setText("Play");
-                    btnPlayPause.setBackground(new Color(170, 110, 30));
-                } else {
-                    btnPlayPause.setText("Pause");
-                    btnPlayPause.setBackground(new Color(60, 120, 60));
-                }
-            }
-        });
-
-        JButton btnReset = new JButton("Reset");
-        btnReset.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        btnReset.setBackground(new Color(140, 40, 40));
-        btnReset.setForeground(Color.WHITE);
-        btnReset.setFocusPainted(false);
-        btnReset.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                jeu.reset();
-                btnPlayPause.setText("Pause");
-                btnPlayPause.setBackground(new Color(60, 120, 60));
-            }
-        });
-
-        barreCtrl.add(btnPlayPause);
-        barreCtrl.add(btnReset);
-        p.add(barreCtrl);
-        p.add(Box.createVerticalStrut(6));
-
-        // Définition des outils
-        outilsBoutons = new Jeu.Outil[]{
-            Jeu.Outil.TAPIS_NORD, Jeu.Outil.TAPIS_SUD,
-            Jeu.Outil.TAPIS_EST,  Jeu.Outil.TAPIS_OUEST,
-            Jeu.Outil.MINE,
-            Jeu.Outil.ROTATEUR,   Jeu.Outil.DECOUPEUR,
-            Jeu.Outil.PEINTURE_ROUGE, Jeu.Outil.PEINTURE_VERT, Jeu.Outil.PEINTURE_BLEU,
-            Jeu.Outil.EMPILEUR,   Jeu.Outil.SUPPRIMER
-        };
-        String[] libelles = {
-            "Tapis N", "Tapis S", "Tapis E", "Tapis O",
-            "Mine",
-            "Rotateur", "Decoupeur",
-            "Peinture R", "Peinture V", "Peinture B",
-            "Empileur", "Supprimer"
-        };
-
-        boutonsOutils = new JButton[outilsBoutons.length];
-        for (int i = 0; i < outilsBoutons.length; i++) {
-            final Jeu.Outil outil = outilsBoutons[i];
-            final int idx = i;
-            JButton btn = new JButton(libelles[i]);
-            btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-            btn.setMaximumSize(new Dimension(106, 24));
-            btn.setFocusPainted(false);
-            btn.setFont(new Font("SansSerif", Font.PLAIN, 10));
-            btn.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    jeu.setOutilCourant(outil);
-                    surbrillanceBouton(idx);
-                }
-            });
-            boutonsOutils[i] = btn;
-            p.add(btn);
-            p.add(Box.createVerticalStrut(2));
-        }
-        surbrillanceBouton(0);
-        return p;
-    }
-
-    private void surbrillanceBouton(int idx) {
-        for (int i = 0; i < boutonsOutils.length; i++) {
-            if (i == idx) {
-                boutonsOutils[i].setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2));
-            } else {
-                boutonsOutils[i].setBorder(UIManager.getBorder("Button.border"));
-            }
-        }
-    }
-
-    // --- Panneau objectifs ---
-    private JPanel creerPanneauObjectifs() {
-        JPanel p = new JPanel();
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBackground(new Color(30, 30, 35));
-        p.setPreferredSize(new Dimension(110, sizeY * pxCase));
-
-        JLabel titre = new JLabel("  Objectif");
-        titre.setForeground(Color.WHITE);
-        titre.setFont(new Font("SansSerif", Font.BOLD, 12));
-        titre.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.add(titre);
-        p.add(Box.createVerticalStrut(6));
-
-        labelObjectif = new JLabel("  1 / 3");
-        labelObjectif.setForeground(new Color(100, 220, 100));
-        labelObjectif.setFont(new Font("SansSerif", Font.BOLD, 11));
-        p.add(labelObjectif);
-        p.add(Box.createVerticalStrut(4));
-
-        panneauFormeObjectif = new ImagePanel();
-        panneauFormeObjectif.setPreferredSize(new Dimension(90, 90));
-        panneauFormeObjectif.setMaximumSize(new Dimension(90, 90));
-        panneauFormeObjectif.setMinimumSize(new Dimension(90, 90));
-        p.add(panneauFormeObjectif);
-        p.add(Box.createVerticalStrut(4));
-
-        labelProgression = new JLabel("  0 / 5");
-        labelProgression.setForeground(Color.LIGHT_GRAY);
-        labelProgression.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        p.add(labelProgression);
-
-        return p;
-    }
-
-    /**
-     * Il y a une grille du côté du modèle ( jeu.getGrille() ) et une grille du côté de la vue (tabIP)
-     */
     private void mettreAJourAffichage() {
-
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
+                ImagePanel ip = tabIP[x][y];
+                ip.reset();
 
-                tabIP[x][y].setBackground((Image) null);
-                tabIP[x][y].setFront(null);
-                tabIP[x][y].setShape(null);
-                tabIP[x][y].setGisement(null);
-                tabIP[x][y].setEstZoneLivraison(false);
-
-                Case c = plateau.getCases()[x][y];
-
-                // affichage du gisement si présent
-                if (c.getGisement() instanceof ItemShape) {
-                    tabIP[x][y].setGisement((ItemShape) c.getGisement());
-                }
-
+                Case    c = plateau.getCases()[x][y];
                 Machine m = c.getMachine();
 
-                if (m != null) {
-
-                    if (m instanceof ZoneLivraison) {
-                        tabIP[x][y].setBackground(icoLivraison);
-                        tabIP[x][y].setEstZoneLivraison(true);
-                    } else if (m instanceof Tapis) {
-                        switch (m.getDirection()) {
-                            case North: tabIP[x][y].setBackground(icoTapisDroite); break;
-                            case South: tabIP[x][y].setBackground(icoTapisBas);   break;
-                            case East:  tabIP[x][y].setBackground(icoTapisBas);   break;
-                            case West:  tabIP[x][y].setBackground(icoTapisGauche);break;
-                            default:    tabIP[x][y].setBackground(icoTapisDroite); break;
-                        }
-                    } else if (m instanceof Poubelle) {
-                        tabIP[x][y].setBackground(icoPoubelle);
-                    } else if (m instanceof Mine) {
-                        tabIP[x][y].setBackground(icoMine);
-                    } else if (m instanceof Rotateur) {
-                        tabIP[x][y].setBackground(icoRotateur);
-                    } else if (m instanceof Decoupeur) {
-                        tabIP[x][y].setBackground(icoDecoupeur);
-                    } else if (m instanceof Peinture) {
-                        tabIP[x][y].setBackground(icoPeinture);
-                    } else if (m instanceof Empileur) {
-                        tabIP[x][y].setBackground(icoEmpileur);
-                    }
-
-                    Item current = m.getCurrent();
-
-                    if (current instanceof ItemShape) {
-                        tabIP[x][y].setShape((ItemShape) current);
-                    }
-                    if (current instanceof ItemColor) {
-                        // tabIP[x][y].setFront(); TODO
-                    }
-
+                // Gisement en fond de case
+                if (c.estGisement()) {
+                    ip.setImageGisement(imageGisement(c));
                 }
 
+                if (m == null) continue;
+
+                // Machine
+                if (m instanceof Tapis) {
+                    Tapis t = (Tapis) m;
+                    ip.setImageBackground(imageTapis(t));
+                    ip.setTypeTapis(t.getTypeForme());
+                    ip.setDirectionTapis(t.getD());
+                    if (t.getEntree() != null) ip.setDirectionEntree(t.getEntree());
+                    if (t.getCurrent() instanceof ItemShape) {
+                        ItemShape is = (ItemShape) t.getCurrent();
+                        ip.setShape(is);
+                        ip.setProgressInCell(is.getProgressInCell());
+                    }
+
+                } else if (m instanceof Mine) {
+                    ip.setImageBackground(icoMine);
+
+                } else if (m instanceof Poubelle) {
+                    ip.setImageBackground(icoPoubelle);
+
+                } else if (m instanceof ZoneLivraison) {
+                    ZoneLivraison zone = (ZoneLivraison) m;
+                    ip.setImageBackground(icoZoneLivraison);
+                    ip.setLabel(zone.getCompteur() + "/" + zone.getObjectif());
+                    if (zone.getFormeCible() != null) ip.setShape(zone.getFormeCible());
+                }
+
+                // Item en transit (hors tapis, déjà traité ci-dessus)
+                if (!(m instanceof Tapis)) {
+                    Item current = m.getCurrent();
+                    if (current instanceof ItemShape) ip.setShape((ItemShape) current);
+                }
             }
         }
-
-        // mise à jour panneau objectifs
-        ZoneLivraison zl = plateau.getZoneLivraison();
-        if (zl != null) {
-            if (zl.isPartieGagnee()) {
-                labelObjectif.setText("  GAGNE !");
-                labelProgression.setText("  Bravo !");
-            } else {
-                int idx = zl.getObjectifCourant();
-                labelObjectif.setText("  " + (idx+1) + " / 3");
-                labelProgression.setText("  " + zl.getQuantiteLivree(idx) + " / " + zl.getQuantiteRequise(idx));
-                panneauFormeObjectif.setShape(zl.getObjectif(idx));
-            }
-        }
-
         grilleIP.repaint();
-        if (panneauFormeObjectif != null) panneauFormeObjectif.repaint();
-
     }
+
+    // ------------------------------------------------------------------ gisement
+
+    private Image imageGisement(Case c) {
+        if (c.getCouleurGisement() == null) return null;
+        switch (c.getCouleurGisement()) {
+            case Red:    return charger("./data/sprites/colors/red.png");
+            case Blue:   return charger("./data/sprites/colors/blue.png");
+            case Green:  return charger("./data/sprites/colors/green.png");
+            case Yellow: return charger("./data/sprites/colors/yellow.png");
+            case Cyan:   return charger("./data/sprites/colors/cyan.png");
+            case Purple: return charger("./data/sprites/colors/purple.png");
+            case White:  return charger("./data/sprites/colors/white.png");
+            default:     return charger("./data/sprites/colors/uncolored.png");
+        }
+    }
+
+    // ------------------------------------------------------------------ tapis
+
+    private Image imageTapis(Tapis tapis) {
+        Direction entree = tapis.getEntree();
+        Direction sortie = tapis.getD();
+        int       etape  = tapis.getEtapeAnimation();
+
+        if (sortie == null) return icoTapisForward[etape];
+
+        if (entree == null || sortie == entree.getOpposite())
+            return imageTapisDroit(sortie, etape);
+
+        // Virage droite — base : South→East
+        if (entree == Direction.South && sortie == Direction.East)  return icoTapisDroite[etape];
+        if (entree == Direction.West  && sortie == Direction.South) return rotation(icoTapisDroite[etape],  90);
+        if (entree == Direction.North && sortie == Direction.West)  return rotation(icoTapisDroite[etape], 180);
+        if (entree == Direction.East  && sortie == Direction.North) return rotation(icoTapisDroite[etape], -90);
+
+        // Virage gauche — base : North→East
+        if (entree == Direction.North && sortie == Direction.East)  return icoTapisGauche[etape];
+        if (entree == Direction.East  && sortie == Direction.South) return rotation(icoTapisGauche[etape], -90);
+        if (entree == Direction.South && sortie == Direction.West)  return rotation(icoTapisGauche[etape], 180);
+        if (entree == Direction.West  && sortie == Direction.North) return rotation(icoTapisGauche[etape],  90);
+
+        return imageTapisDroit(sortie, etape);
+    }
+
+    private Image imageTapisDroit(Direction sortie, int etape) {
+        if (sortie == Direction.North) return icoTapisForward[etape];
+        if (sortie == Direction.East)  return rotation(icoTapisForward[etape],  90);
+        if (sortie == Direction.South) return rotation(icoTapisForward[etape], 180);
+        if (sortie == Direction.West)  return rotation(icoTapisForward[etape], -90);
+        return icoTapisForward[etape];
+    }
+
+    private Image rotation(Image src, double angleDeg) {
+        int w = src.getWidth(null), h = src.getHeight(null);
+        BufferedImage dest = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = dest.createGraphics();
+        g2.setTransform(AffineTransform.getRotateInstance(Math.toRadians(angleDeg), w / 2.0, h / 2.0));
+        g2.drawImage(src, 0, 0, null);
+        g2.dispose();
+        return dest;
+    }
+
+    // ------------------------------------------------------------------ Observer
 
     @Override
     public void update(Observable o, Object arg) {
-
         SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        mettreAJourAffichage();
-                    }
-                }); 
-
+            @Override
+            public void run() {
+                mettreAJourAffichage();
+            }
+        });
     }
 }

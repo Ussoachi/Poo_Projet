@@ -2,151 +2,204 @@ package vuecontroleur;
 
 import modele.item.ItemShape;
 import modele.item.SubShape;
+import modele.plateau.Direction;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class ImagePanel extends JPanel {
-    private Image imgBackground;
-    private Image imgFront;
+
+    private Image     imgBackground;
+    private Image     imgGisement;
+    private String    typeTapis      = "top";
+    private Direction directionTapis  = Direction.North;
+    private Direction directionEntree = Direction.South;
+
     private ItemShape shape;
-    private ItemShape gisement;       // gisement affiché en fond si pas de machine
-    private boolean estZoneLivraison; // fond vert pour la zone de livraison
+    private double    progressInCell = 0.0;
 
+    private ItemShape ghostShape;
+    private int       ghostDrawX;
+    private int       ghostDrawY;
 
-    public void setShape(ItemShape _shape) {
-        shape = _shape;
+    private String label;
+
+    public ImagePanel() { setPreferredSize(new Dimension(82, 82)); }
+
+    public void setImageBackground(Image img)   { imgBackground  = img; }
+    public void setImageGisement(Image img)     { imgGisement    = img; }
+    public void setTypeTapis(String t)          { typeTapis      = t;   }
+    public void setDirectionTapis(Direction d)  { directionTapis  = d;  }
+    public void setDirectionEntree(Direction d) { directionEntree = d;  }
+    public void setShape(ItemShape s)           { shape          = s;   }
+    public void setProgressInCell(double p)     { progressInCell = Math.max(0, Math.min(1, p)); }
+    public void setLabel(String l)              { label          = l;   }
+
+    public void setGhostAt(ItemShape s, int x, int y) { ghostShape = s; ghostDrawX = x; ghostDrawY = y; }
+    public void clearGhost()                          { ghostShape = null; }
+
+    public void reset() {
+        imgBackground = null; imgGisement = null;
+        shape = null; ghostShape = null; label = null;
+        typeTapis = "top"; progressInCell = 0.0;
     }
 
-    public void setBackground(Image _imgBackground) {
-        imgBackground = _imgBackground;
-    }
-
-    public void setFront(Image _imgFront) {
-        imgFront = _imgFront;
-    }
-
-    public void setGisement(ItemShape g) {
-        gisement = g;
-    }
-
-    public void setEstZoneLivraison(boolean b) {
-        estZoneLivraison = b;
-    }
+    // ------------------------------------------------------------------ peinture
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        final int bordure= 1;
-        final int xBack = bordure;
-        final int yBack = bordure;
-        final int widthBack = getWidth() - bordure*2;
-        final int heigthBack = getHeight() - bordure*2;
+        final int total = Math.min(getWidth(), getHeight());
+        final int half  = total / 2;
+        final int sF    = (total / 4) * 2;   // taille de la forme (50% de la case)
 
-        final int subPartWidth = widthBack / 4;
-        final int subPartHeigth = heigthBack / 4;
+        // 0. Gisement
+        if (imgGisement != null)
+            g.drawImage(imgGisement, 1, 1, getWidth() - 2, getHeight() - 2, this);
 
-        final int xFront = bordure + subPartWidth;
-        final int yFront = bordure + subPartHeigth;
-        final int widthFront = subPartWidth*2;
-        final int heigthFront = subPartHeigth*2;
+        // 1. Machine
+        if (imgBackground != null)
+            g.drawImage(imgBackground, 1, 1, getWidth() - 2, getHeight() - 2, this);
 
-        // fond vert pour la zone de livraison
-        if (estZoneLivraison) {
-            g.setColor(new Color(30, 100, 30));
-            g.fillRect(xBack, yBack, widthBack, heigthBack);
-        }
+        // 2. Ghost (débordement de la case voisine)
+        if (ghostShape != null)
+            drawShape(g, ghostShape, ghostDrawX, ghostDrawY, sF, sF);
 
-        // cadre
-        if (estZoneLivraison) {
-            g.setColor(new Color(60, 200, 60));
-        } else {
-            g.setColor(Color.BLACK);
-        }
-        g.drawRoundRect(bordure, bordure, widthBack, heigthBack, bordure, bordure);
-
-        if (imgBackground != null) {
-            g.drawImage(imgBackground, xBack, yBack, widthBack, heigthBack, this);
-        }
-
-        if (imgFront != null) {
-            g.drawImage(imgFront, xFront, yFront, widthFront, heigthFront, this);
-        }
-
-        // gisement affiché en petit si pas de machine posée
-        if (gisement != null && imgBackground == null) {
-            int mg = subPartWidth;
-            dessinerShape(g, gisement, xBack + mg, yBack + mg, widthBack - mg*2, heigthBack - mg*2);
-        }
-
+        // 3. Forme principale animée
         if (shape != null) {
-            // TODO autres layers
-            dessinerShape(g, shape, xFront, yFront, widthFront, heigthFront);
+            int drawX, drawY;
+
+            if (typeTapis.equals("top")) {
+                // Tapis droit : la forme se déplace en ligne droite
+                int offset = (int)((progressInCell - 0.5) * total);
+                drawX = half - sF / 2;
+                drawY = half - sF / 2;
+                switch (directionTapis) {
+                    case North: drawY = half - offset - sF / 2; break;
+                    case South: drawY = half + offset - sF / 2; break;
+                    case East:  drawX = half + offset - sF / 2; break;
+                    case West:  drawX = half - offset - sF / 2; break;
+                }
+            } else {
+                // Virage : interpolation linéaire entre entrée et sortie
+                int ax = half, ay = half, cx = half, cy = half;
+                switch (directionEntree) {
+                    case North: ax = half;  ay = 0;     break;
+                    case South: ax = half;  ay = total; break;
+                    case East:  ax = total; ay = half;  break;
+                    case West:  ax = 0;     ay = half;  break;
+                }
+                switch (directionTapis) {
+                    case North: cx = half;  cy = 0;     break;
+                    case South: cx = half;  cy = total; break;
+                    case East:  cx = total; cy = half;  break;
+                    case West:  cx = 0;     cy = half;  break;
+                }
+                drawX = (int)(ax + progressInCell * (cx - ax)) - sF / 2;
+                drawY = (int)(ay + progressInCell * (cy - ay)) - sF / 2;
+            }
+
+            drawShape(g, shape, drawX, drawY, sF, sF);
         }
 
+        // 4. Cadre
+        g.setColor(new Color(150, 150, 150, 80));
+        g.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+
+        // 5. Label (compteur ZoneLivraison)
+        if (label != null) {
+            g.setFont(new Font("Arial", Font.BOLD, 14));
+            FontMetrics fm = g.getFontMetrics();
+            int lx = getWidth()  - fm.stringWidth(label);
+            int ly = getHeight() - 6;
+            g.setColor(new Color(255, 255, 255, 180));
+            g.fillRoundRect(lx - 3, ly - fm.getAscent(), fm.stringWidth(label) + 6, fm.getHeight(), 4, 4);
+            g.setColor(Color.BLACK);
+            g.drawString(label, lx, ly);
+        }
     }
 
-    private void dessinerShape(Graphics g, ItemShape s, int x, int y, int w, int h) {
-        SubShape[] tabS = s.getSubShapes(ItemShape.Layer.one);
-        modele.item.Color[] tabC = s.getColors(ItemShape.Layer.one);
+    // ------------------------------------------------------------------ dessin d'une forme
 
-        for (int i = 0; i < 4; i++) {
-            SubShape ss = tabS[i];
-            if (ss != SubShape.None) {
-                // couleur
-                if (tabC[i] != null) {
-                    switch (tabC[i]) {
-                        case Red:    g.setColor(new Color(220, 50, 50));  break;
-                        case Green:  g.setColor(new Color(50, 200, 80));  break;
-                        case Blue:   g.setColor(new Color(60, 100, 220)); break;
-                        case Yellow: g.setColor(new Color(230, 210, 40)); break;
-                        case Purple: g.setColor(new Color(160, 60, 200)); break;
-                        case Cyan:   g.setColor(new Color(40, 200, 220)); break;
-                        case White:  g.setColor(Color.WHITE);             break;
-                        default:     g.setColor(Color.GRAY);              break;
-                    }
-                } else {
-                    g.setColor(Color.GRAY);
-                }
+    private void drawShape(Graphics g, ItemShape shape, int drawX, int drawY, int wF, int hF) {
+        // On dessine les 3 layers, du bas vers le haut (layer one en dernier = au-dessus)
+        for (ItemShape.Layer layer : new ItemShape.Layer[]{ItemShape.Layer.three, ItemShape.Layer.two, ItemShape.Layer.one}) {
+            SubShape[]          tabS = shape.getSubShapes(layer);
+            modele.item.Color[] tabC = shape.getColors(layer);
 
-                // position du quadrant : 0=haut-droit, 1=bas-droit, 2=bas-gauche, 3=haut-gauche
-                int qx = x + (w / 2) * ((i >> 1) ^ 1);
-                int qy = y + (h / 2) * ((i & 1) ^ ((i >> 1) & 1));
-                int qw = w / 2;
-                int qh = h / 2;
+            int qW = wF / 2, qH = hF / 2;
+
+            for (int i = 0; i < 4; i++) {
+                SubShape ss = tabS[i];
+                if (ss == SubShape.None || tabC[i] == null) continue;
+
+                // Couleur du quadrant
+                g.setColor(couleurAWT(tabC[i]));
+
+                // Position du quadrant dans la forme
+                int qX = drawX + (i == 0 || i == 1 ? qW : 0);
+                int qY = drawY + (i == 1 || i == 2 ? qH : 0);
 
                 switch (ss) {
                     case Carre:
-                        g.fillRect(qx, qy, qw, qh);
+                        g.fillRect(qX, qY, qW, qH);
+                        g.setColor(Color.BLACK);
+                        g.drawRect(qX, qY, qW, qH);
                         break;
+
                     case Circle:
-                        g.fillOval(qx, qy, qw, qh);
+                        int startAngle = (i == 0 ? 0 : i == 1 ? 270 : i == 2 ? 180 : 90);
+                        g.fillArc(drawX, drawY, wF, hF, startAngle, 90);
+                        g.setColor(Color.BLACK);
+                        g.drawArc(drawX, drawY, wF, hF, startAngle, 90);
+                        // Rayons vers le centre
+                        int cX = drawX + wF / 2, cY = drawY + hF / 2;
+                        if      (i == 0) { g.drawLine(cX, cY, cX + qW, cY); g.drawLine(cX, cY, cX, cY - qH); }
+                        else if (i == 1) { g.drawLine(cX, cY, cX + qW, cY); g.drawLine(cX, cY, cX, cY + qH); }
+                        else if (i == 2) { g.drawLine(cX, cY, cX - qW, cY); g.drawLine(cX, cY, cX, cY + qH); }
+                        else             { g.drawLine(cX, cY, cX - qW, cY); g.drawLine(cX, cY, cX, cY - qH); }
                         break;
+
                     case Fan:
-                        int[] anglesDepart = {0, 270, 180, 90};
-                        g.fillArc(qx - qw/2, qy - qh/2, qw*2, qh*2, anglesDepart[i], 90);
+                        int fanAngle = (i == 0 ? 0 : i == 1 ? 270 : i == 2 ? 180 : 90);
+                        g.fillArc(qX - qW, qY - qH, wF, hF, fanAngle, 90);
+                        g.setColor(Color.BLACK);
+                        g.drawArc(qX - qW, qY - qH, wF, hF, fanAngle, 90);
                         break;
+
                     case Star:
-                        int cx = qx + qw/2;
-                        int cy = qy + qh/2;
-                        int r = qw/2;
-                        int rInt = r/2;
-                        int n = 4;
-                        int[] xp = new int[n*2];
-                        int[] yp = new int[n*2];
-                        for (int j = 0; j < n*2; j++) {
-                            double angle = Math.PI / n * j - Math.PI / 2;
-                            int rayon = (j % 2 == 0) ? r : rInt;
-                            xp[j] = cx + (int)(rayon * Math.cos(angle));
-                            yp[j] = cy + (int)(rayon * Math.sin(angle));
+                        int[] px = new int[3], py = new int[3];
+                        int mx = qX + qW / 2, my = qY + qH / 2;
+                        switch (i) {
+                            case 0: px[0]=qX;      py[0]=qY;      px[1]=qX+qW;   py[1]=qY;      px[2]=mx;    py[2]=my; break;
+                            case 1: px[0]=qX+qW;   py[0]=qY;      px[1]=qX+qW;   py[1]=qY+qH;   px[2]=mx;    py[2]=my; break;
+                            case 2: px[0]=qX+qW;   py[0]=qY+qH;   px[1]=qX;      py[1]=qY+qH;   px[2]=mx;    py[2]=my; break;
+                            case 3: px[0]=qX;      py[0]=qY+qH;   px[1]=qX;      py[1]=qY;       px[2]=mx;    py[2]=my; break;
                         }
-                        g.fillPolygon(xp, yp, n*2);
-                        break;
-                    default:
+                        g.fillPolygon(px, py, 3);
+                        g.setColor(Color.BLACK);
+                        g.drawPolygon(px, py, 3);
                         break;
                 }
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ couleurs
+
+    private Color couleurAWT(modele.item.Color c) {
+        switch (c) {
+            case Red:    return Color.RED;
+            case White:  return Color.WHITE;
+            case Blue:   return Color.BLUE;
+            case Green:  return Color.GREEN;
+            case Yellow: return Color.YELLOW;
+            case Cyan:   return Color.CYAN;
+            case Purple: return new Color(128, 0, 128);
+            default:     return Color.LIGHT_GRAY;
         }
     }
 }

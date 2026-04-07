@@ -3,60 +3,86 @@ package modele.plateau;
 import modele.item.Item;
 import modele.item.ItemShape;
 
+import java.io.Serializable;
 import java.util.LinkedList;
-import java.util.Queue;
 
-public abstract class Machine implements Runnable {
-    LinkedList<Item> current;
+public abstract class Machine implements Runnable, Serializable {
+    private static final long serialVersionUID = 1L;
 
-    Case c;
-    Direction d = Direction.North; // par défaut, pour commencer, tout est orienté au north
+    protected LinkedList<Item> current;
+    protected Case c;
+    protected Direction d = Direction.North;
 
-    public Machine()
-    {
-        current = new LinkedList<Item>();
+    public Machine() {
+        current = new LinkedList<>();
     }
 
-    public Machine(Item _item) {
+    public Machine(Item item) {
         this();
-        current.add(_item);
+        current.add(item);
     }
 
-    public void setCase(Case _c) {
-        c= _c;
+    public void setCase(Case c) {
+        this.c = c;
     }
 
-    public Direction getDirection() {
+    public Direction getD() {
         return d;
     }
 
-    public void setDirection(Direction _d) {
-        d = _d;
+    public void setD(Direction d) {
+        this.d = d;
     }
 
     public Item getCurrent() {
-        if (current.size() > 0) {
-            return current.get(0);
-        } else {
-            return null;
+        return current.isEmpty() ? null : current.getFirst();
+    }
+
+    public void setCurrent(Item item) {
+        current.clear();
+        if (item != null) {
+            current.add(item);
         }
     }
 
-    public void send() // la machine dépose un item sur sa sortie dans la direction d
-    {
-        Case voisine = c.plateau.getCase(c, d);
-        if (voisine != null) {
-            Machine m = voisine.getMachine();
-            if (m != null && !current.isEmpty() && m.current.isEmpty()) {
-                Item item = current.getFirst();
-                m.current.add(item);
-                current.remove(item);
-            }
+    protected boolean canReceiveItem(Item item) {
+        return true;
+    }
+
+    protected boolean ReceiveItem(Item item) {
+        if (canReceiveItem(item)) {
+            current.add(item);
+            return true;
+        }
+        return false;
+    }
+
+    public void send() {
+        if (current.isEmpty()) {
+            return;
+        }
+
+        Case nextCase = c.plateau.getCase(c, d);
+        if (nextCase == null) {
+            return;
+        }
+
+        Machine nextMachine = nextCase.getMachine();
+        if (nextMachine == null) {
+            return;
+        }
+
+        Item item = current.getFirst();
+
+        if (nextMachine.ReceiveItem(item)) {
+            current.removeFirst();
         }
     }
 
     public void work() {
-        // aucune action par défaut
+        if (!current.isEmpty() && current.getFirst() instanceof ItemShape) {
+            ((ItemShape) current.getFirst()).rotate();
+        }
     }
 
     @Override
@@ -64,7 +90,4 @@ public abstract class Machine implements Runnable {
         work();
         send();
     }
-
-
-
 }

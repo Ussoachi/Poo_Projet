@@ -1,36 +1,45 @@
 package modele.jeu;
 
-import modele.item.Color;
+import modele.plateau.Case;
+import modele.item.Item;
 import modele.item.ItemShape;
-import modele.plateau.*;
+import modele.plateau.Direction;
+import modele.plateau.Machine;
+import modele.plateau.Mine;
+import modele.plateau.Plateau;
+import modele.plateau.Poubelle;
+import modele.plateau.Tapis;
+import modele.plateau.ZoneLivraison;
 
-public class Jeu extends Thread{
+public class Jeu extends Thread {
     private Plateau plateau;
-    private boolean enPause = false;
 
-    // Outil sélectionné dans la boîte à outils
-    public enum Outil {
-        TAPIS_NORD, TAPIS_SUD, TAPIS_EST, TAPIS_OUEST,
-        MINE, ROTATEUR, DECOUPEUR,
-        PEINTURE_ROUGE, PEINTURE_VERT, PEINTURE_BLEU,
-        EMPILEUR, SUPPRIMER
-    }
-    private Outil outilCourant = Outil.TAPIS_NORD;
+    private boolean enCours;
+    private boolean enPause;
+
+    private static final int DELAI_SIMULATION = 80;
+
+    private int startX = -1;
+    private int startY = -1;
+    private int lastX = -1;
+    private int lastY = -1;
 
     public Jeu() {
         plateau = new Plateau();
 
-        // 3 objectifs de production consécutifs
-        ItemShape[] objectifs = new ItemShape[3];
-        int[] quantites = new int[3];
-        objectifs[0] = new ItemShape("CrCrCrCr");
-        quantites[0] = 5;
-        objectifs[1] = new ItemShape("CbCbCbCb");
-        quantites[1] = 5;
-        objectifs[2] = new ItemShape("RgRgRgRg");
-        quantites[2] = 3;
-        ZoneLivraison zl = new ZoneLivraison(objectifs, quantites);
-        plateau.setZoneLivraison(zl, 8, 8);
+        Mine mine = new Mine();
+        mine.setD(Direction.East);
+        plateau.setMachine(2, 5, mine);
+
+        ZoneLivraison zone = new ZoneLivraison(10, new ItemShape("CrCrCbCb"));
+        plateau.setMachine(12, 5, zone);
+        plateau.setMachine(13, 5, zone);
+        plateau.setMachine(12, 6, zone);
+        plateau.setMachine(13, 6, zone);
+        plateau.setMachine(5, 10, new Poubelle());
+
+        enCours = true;
+        enPause = false;
 
         start();
     }
@@ -39,88 +48,127 @@ public class Jeu extends Thread{
         return plateau;
     }
 
-    public Outil getOutilCourant() {
-        return outilCourant;
+    private Direction directionEntre(int x1, int y1, int x2, int y2) {
+        if (x2 > x1) return Direction.East;
+        if (x2 < x1) return Direction.West;
+        if (y2 > y1) return Direction.South;
+        return Direction.North;
     }
 
-    public void setOutilCourant(Outil o) {
-        outilCourant = o;
+    private boolean estAdjacent(int x1, int y1, int x2, int y2) {
+        return Math.abs(x1 - x2) + Math.abs(y1 - y2) == 1;
     }
 
-    public boolean isEnPause() {
-        return enPause;
-    }
-
-    public synchronized void togglePause() {
-        enPause = !enPause;
-        if (!enPause) notifyAll();
-    }
-
-    public synchronized void reset() {
-        // efface toutes les machines sauf la zone de livraison
-        Case[][] cases = plateau.getCases();
-        for (int x = 0; x < Plateau.SIZE_X; x++) {
-            for (int y = 0; y < Plateau.SIZE_Y; y++) {
-                Machine m = cases[x][y].getMachine();
-                if (m != null && !(m instanceof ZoneLivraison)) {
-                    plateau.removeMachine(x, y);
-                }
-            }
-        }
+    private boolean estProtegee(int x, int y) {
+        Machine m = plateau.getCases()[x][y].getMachine();
+        return m instanceof Mine || m instanceof ZoneLivraison || m instanceof Poubelle;
     }
 
     public void press(int x, int y) {
-        // protéger la zone de livraison
-        Machine existante = plateau.getCases()[x][y].getMachine();
-        if (existante instanceof ZoneLivraison) return;
+        poserTapis(x, y);
+    }
 
-        switch (outilCourant) {
-            case TAPIS_NORD: { Tapis t = new Tapis(); t.setDirection(Direction.North); plateau.setMachine(x, y, t); break; }
-            case TAPIS_SUD:  { Tapis t = new Tapis(); t.setDirection(Direction.South); plateau.setMachine(x, y, t); break; }
-            case TAPIS_EST:  { Tapis t = new Tapis(); t.setDirection(Direction.East);  plateau.setMachine(x, y, t); break; }
-            case TAPIS_OUEST:{ Tapis t = new Tapis(); t.setDirection(Direction.West);  plateau.setMachine(x, y, t); break; }
-            case MINE:       { Mine m = new Mine();   m.setDirection(Direction.South); plateau.setMachine(x, y, m); break; }
-            case ROTATEUR:   { Rotateur r = new Rotateur(); r.setDirection(Direction.North); plateau.setMachine(x, y, r); break; }
-            case DECOUPEUR:  { Decoupeur d = new Decoupeur(); d.setDirection(Direction.North); plateau.setMachine(x, y, d); break; }
-            case PEINTURE_ROUGE: { Peinture p = new Peinture(Color.Red);   p.setDirection(Direction.North); plateau.setMachine(x, y, p); break; }
-            case PEINTURE_VERT:  { Peinture p = new Peinture(Color.Green); p.setDirection(Direction.North); plateau.setMachine(x, y, p); break; }
-            case PEINTURE_BLEU:  { Peinture p = new Peinture(Color.Blue);  p.setDirection(Direction.North); plateau.setMachine(x, y, p); break; }
-            case EMPILEUR:   { Empileur e = new Empileur(); e.setDirection(Direction.North); plateau.setMachine(x, y, e); break; }
-            case SUPPRIMER:  { plateau.removeMachine(x, y); break; }
-            default: break;
+    public void poserTapis(int x, int y) {
+        if (estProtegee(x, y)) {
+            startX = -1;
+            startY = -1;
+            lastX = -1;
+            lastY = -1;
+            return;
+        }
+
+        Machine m = plateau.getCases()[x][y].getMachine();
+
+        if (m == null) {
+            Tapis t = new Tapis();
+            plateau.setMachine(x, y, t);
+        } else if (!(m instanceof Tapis)) {
+            startX = -1;
+            startY = -1;
+            lastX = -1;
+            lastY = -1;
+            return;
+        }
+
+        startX = x;
+        startY = y;
+        lastX = x;
+        lastY = y;
+    }
+
+    public void supprimerMachine(int x, int y) {
+        if (estProtegee(x, y)) return;
+
+        plateau.setMachine(x, y, null);
+
+        if (lastX == x && lastY == y) {
+            lastX = -1;
+            lastY = -1;
+        }
+
+        if (startX == x && startY == y) {
+            startX = -1;
+            startY = -1;
         }
     }
 
     public void slide(int x, int y) {
-        // glissement seulement pour les tapis et supprimer
-        switch (outilCourant) {
-            case TAPIS_NORD:
-            case TAPIS_SUD:
-            case TAPIS_EST:
-            case TAPIS_OUEST:
-            case SUPPRIMER:
-                press(x, y);
-                break;
-            default:
-                break;
+        if (lastX == -1 || lastY == -1) return;
+        if (x == lastX && y == lastY) return;
+        if (!estAdjacent(lastX, lastY, x, y)) return;
+        if (estProtegee(x, y)) return;
+
+        Direction mouvement = directionEntre(lastX, lastY, x, y);
+
+        Machine machinePrecedente = plateau.getCases()[lastX][lastY].getMachine();
+        if (!(machinePrecedente instanceof Tapis)) return;
+
+        Tapis tapisPrecedent = (Tapis) machinePrecedente;
+        tapisPrecedent.setD(mouvement);
+
+        Machine machineCourante = plateau.getCases()[x][y].getMachine();
+        Tapis tapisCourant;
+
+        if (machineCourante == null) {
+            tapisCourant = new Tapis();
+            plateau.setMachine(x, y, tapisCourant);
+        } else if (machineCourante instanceof Tapis) {
+            tapisCourant = (Tapis) machineCourante;
+        } else {
+            return;
         }
+
+        tapisCourant.setEntree(mouvement.getOpposite());
+        tapisCourant.setD(mouvement);
+
+        lastX = x;
+        lastY = y;
     }
 
+    @Override
     public void run() {
-        jouerPartie();
-    }
-
-    public void jouerPartie() {
-        while(true) {
+        while (enCours) {
             try {
-                synchronized (this) {
-                    while (enPause) wait();
+                if (!enPause) {
+                    plateau.run();
                 }
-                plateau.run();
-                Thread.sleep(800);
+                Thread.sleep(DELAI_SIMULATION);
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                enCours = false;
+                Thread.currentThread().interrupt();
             }
         }
+    }
+
+    public void mettreEnPause() {
+        enPause = true;
+    }
+
+    public void reprendre() {
+        enPause = false;
+    }
+
+    public void arreterJeu() {
+        enCours = false;
     }
 }
